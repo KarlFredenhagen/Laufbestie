@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { GeneratedPlan, Preferences, TrainingSummary } from "./types";
+import { CalendarEvent, GeneratedPlan, Preferences, TrainingSummary } from "./types";
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
 
@@ -31,24 +31,7 @@ const EXAMPLE_OUTPUT: GeneratedPlan = {
   coach_notes: "Diese erste Woche ist bewusst vorsichtig angesetzt, um eine Basis zu schaffen. Konsistenz geht vor Tempo — tausche einen lockeren Lauf lieber gegen eine Pause, wenn du dich ungewöhnlich erschöpft fühlst.",
 };
 
-const SYSTEM_PROMPT = `Du bist ein erfahrener Lauftrainer, der personalisierte, sichere und realistische Trainingspläne erstellt.
-
-Du erhältst ein JSON-Objekt mit zwei Teilen:
-1. "training_summary": eine aggregierte Zusammenfassung der bisherigen Trainingshistorie (wöchentliche Distanzen, Pace-Trend, längster Lauf, Frequenz, Höhenmeter-Trend, ein kürzlicher schneller Effort).
-2. "preferences": das Ziel des Läufers/der Läuferin, Zieldistanz/-datum, wöchentliche Verfügbarkeit, Pflicht-Ruhetage, Erfahrungslevel, Verletzungs-/Einschränkungshinweise und bevorzugter Langlauftag.
-
-Erstelle einen wochenweisen Trainingsplan, der:
-- graduell aufbaut (wöchentliche Gesamtdistanz nicht um mehr als ~10% steigern, außer in geplanten Erholungswochen)
-- die verfügbaren Tage pro Woche und Pflicht-Ruhetage respektiert
-- den Langlauf nach Möglichkeit auf den bevorzugten Tag legt
-- auf der tatsächlichen bisherigen Trainingsbelastung basiert (keine Distanzen weit über das hinaus, was die Historie hergibt)
-- Verletzungs-/Einschränkungshinweise durch angepasste Intensität/Umfang berücksichtigt
-- auf das Zieldatum/die Zieldistanz hinarbeitet, falls angegeben, sonst auf allgemeine Fitness
-- eine Mischung aus lockeren Läufen, gelegentlichen Tempo-/Intervalleinheiten (bei fortgeschrittenem Level) und Langläufen enthält, restliche Tage als Pause oder Cross-Training
-
-Antworte AUSSCHLIESSLICH mit validem JSON nach genau diesem Schema, keine Erklärungen, keine Markdown-Codeblöcke:
-
-{
+const PLAN_SCHEMA_BLOCK = `{
   "plan_name": "string",
   "weeks": [
     {
@@ -66,7 +49,27 @@ Antworte AUSSCHLIESSLICH mit validem JSON nach genau diesem Schema, keine Erklä
     }
   ],
   "coach_notes": "string, 2-3 Sätze allgemeine Hinweise"
-}
+}`;
+
+const PLAN_RULES = `- graduell aufbaut (wöchentliche Gesamtdistanz nicht um mehr als ~10% steigern, außer in geplanten Erholungswochen)
+- die verfügbaren Tage pro Woche und Pflicht-Ruhetage respektiert
+- den Langlauf nach Möglichkeit auf den bevorzugten Tag legt
+- auf der tatsächlichen bisherigen Trainingsbelastung basiert (keine Distanzen weit über das hinaus, was die Historie hergibt)
+- Verletzungs-/Einschränkungshinweise durch angepasste Intensität/Umfang berücksichtigt
+- auf das Zieldatum/die Zieldistanz hinarbeitet, falls angegeben, sonst auf allgemeine Fitness
+- eine Mischung aus lockeren Läufen, gelegentlichen Tempo-/Intervalleinheiten (bei fortgeschrittenem Level) und Langläufen enthält, restliche Tage als Pause oder Cross-Training
+- bekannte anstehende Termine berücksichtigt (z.B. an Reisetagen keine langen Läufe einplanen, ein Termin am Wunsch-Langlauftag verschiebt den Langlauf auf einen anderen Tag)`;
+
+const GENERATE_SYSTEM_PROMPT = `Du bist ein erfahrener Lauftrainer, der personalisierte, sichere und realistische Trainingspläne erstellt.
+
+Du erhältst ein JSON-Objekt mit: "current_date" (heutiges Datum), "training_summary" (aggregierte Trainingshistorie), "preferences" (Ziel, Zieldistanz/-datum, wöchentliche Verfügbarkeit, Pflicht-Ruhetage, Erfahrungslevel, Einschränkungen, bevorzugter Langlauftag) und optional "upcoming_events" (bekannte Termine wie Reisen, Rennen o.ä.).
+
+Erstelle einen wochenweisen Trainingsplan, der bei "current_date" bzw. dem darauffolgenden Montag beginnt, und der:
+${PLAN_RULES}
+
+Antworte AUSSCHLIESSLICH mit validem JSON nach genau diesem Schema, keine Erklärungen, keine Markdown-Codeblöcke:
+
+${PLAN_SCHEMA_BLOCK}
 
 Wichtig:
 - Alle Texte (plan_name, notes, coach_notes) auf Deutsch verfassen.
@@ -76,6 +79,25 @@ Wichtig:
 Hier ist ein vollständiges Beispiel für eine gültige Antwort:
 
 ${JSON.stringify(EXAMPLE_OUTPUT, null, 2)}`;
+
+const ADAPT_SYSTEM_PROMPT = `Du bist ein erfahrener Lauftrainer. Du bekommst einen bereits bestehenden Trainingsplan (JSON) sowie eine aktualisierte Trainingszusammenfassung, die aktuellen Präferenzen, optional anstehende Termine, und eine kurze Notiz der Person dazu, was sich geändert hat (z.B. Krankheit, Verletzung, verschobenes Ziel-Rennen, mehr/weniger Zeit).
+
+Du erhältst zusätzlich "current_date" (heutiges Datum). Wochen mit "start_date" vor "current_date" gelten als bereits gelaufen — lass sie inhaltlich unverändert, außer die Notiz verlangt ausdrücklich etwas anderes. Passe die aktuelle und alle zukünftigen Wochen an die neue Situation an: Umfang/Intensität reduzieren oder anpassen bei Krankheit/Verletzung, den Aufbau neu takten bei geändertem Zieldatum, Rücksicht auf neue Termine nehmen, usw.
+
+Der Plan soll insgesamt so viele Wochen behalten wie sinnvoll (bei einem verschobenen Zieldatum ggf. mehr oder weniger Wochen als vorher).
+
+Passe den Plan an, sodass er:
+${PLAN_RULES}
+
+Antworte AUSSCHLIESSLICH mit validem JSON nach genau diesem Schema (identisch zum bisherigen Plan-Format), keine Erklärungen, keine Markdown-Codeblöcke:
+
+${PLAN_SCHEMA_BLOCK}
+
+Wichtig:
+- Alle Texte (plan_name, notes, coach_notes) auf Deutsch verfassen.
+- Für das Feld "day" ausschließlich die deutschen Wochentagsnamen verwenden: Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag.
+- Jede Woche muss alle 7 Wochentage enthalten (Montag bis Sonntag), auch Ruhetage.
+- Erwähne im "coach_notes" kurz, was sich durch die Anpassung geändert hat.`;
 
 const QA_SYSTEM_PROMPT = `Du bist ein erfahrener, freundlicher Lauftrainer. Beantworte die Frage der Person direkt, praktisch und auf Deutsch.
 
@@ -89,15 +111,21 @@ function extractJson(text: string): string {
   return (fenced ? fenced[1] : text).trim();
 }
 
-export async function generatePlan(summary: TrainingSummary, preferences: Preferences): Promise<GeneratedPlan> {
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Shared "ask Claude for a plan JSON object, retry once on a parse failure" flow used by both
+// fresh generation and adaptation — the only difference between the two is the system prompt
+// and the user message contents.
+async function requestPlanJson(systemPrompt: string, userMessage: string): Promise<GeneratedPlan> {
   const client = getClient();
-  const userMessage = JSON.stringify({ training_summary: summary, preferences }, null, 2);
 
   const attempt = async (extra?: string): Promise<string> => {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 8000,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: "user", content: extra ? `${userMessage}\n\n${extra}` : userMessage }],
     });
     const textBlock = response.content.find((b) => b.type === "text");
@@ -108,7 +136,6 @@ export async function generatePlan(summary: TrainingSummary, preferences: Prefer
   try {
     return JSON.parse(extractJson(raw)) as GeneratedPlan;
   } catch (firstError) {
-    // Retry once, telling the model exactly what went wrong and re-demanding pure JSON.
     const retryRaw = await attempt(
       `Deine vorherige Antwort konnte nicht als JSON geparst werden: ${(firstError as Error).message}. Antworte AUSSCHLIESSLICH mit validem JSON nach dem Schema, ohne Erklärungen und ohne Codeblöcke.`
     );
@@ -118,6 +145,46 @@ export async function generatePlan(summary: TrainingSummary, preferences: Prefer
       throw new Error(`Claude hat auch nach einem erneuten Versuch kein valides JSON geliefert: ${(secondError as Error).message}`);
     }
   }
+}
+
+export async function generatePlan(
+  summary: TrainingSummary,
+  preferences: Preferences,
+  events: CalendarEvent[]
+): Promise<GeneratedPlan> {
+  const userMessage = JSON.stringify(
+    {
+      current_date: todayIso(),
+      training_summary: summary,
+      preferences,
+      upcoming_events: events,
+    },
+    null,
+    2
+  );
+  return requestPlanJson(GENERATE_SYSTEM_PROMPT, userMessage);
+}
+
+export async function adaptPlan(
+  currentPlan: GeneratedPlan,
+  summary: TrainingSummary,
+  preferences: Preferences,
+  events: CalendarEvent[],
+  changeNote: string
+): Promise<GeneratedPlan> {
+  const userMessage = JSON.stringify(
+    {
+      current_date: todayIso(),
+      current_plan: currentPlan,
+      training_summary: summary,
+      preferences,
+      upcoming_events: events,
+      change_note: changeNote || "Keine spezifische Notiz — bitte anhand der aktuellen Trainingsdaten und Termine sinnvoll anpassen.",
+    },
+    null,
+    2
+  );
+  return requestPlanJson(ADAPT_SYSTEM_PROMPT, userMessage);
 }
 
 // Free-form running-coach Q&A that works with zero uploaded data — training summary and

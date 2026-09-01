@@ -110,6 +110,19 @@ as context automatically; otherwise it just answers from general running knowled
 quick questions ("Wie oft sollte ich als Anfänger laufen?") without going through the full
 upload → preferences → plan-generation flow.
 
+## Calendar & adjusting a plan
+
+The "Kalender" tab lets you note upcoming events (races, travel, anything that affects
+training) — both plan generation and plan adaptation send upcoming events to Claude as
+context automatically.
+
+In the "Plan" tab, once a plan exists you get three actions:
+- **Plan anpassen** — adjusts the current plan in place (same weeks, revised going forward)
+  given fresh training data, calendar events, and an optional free-text note about what
+  changed (illness, injury, a moved race date, more/less available time).
+- **Neuen Plan erstellen** — starts over from the preferences wizard.
+- **Plan löschen** — clears the current plan back to the empty state.
+
 ## How it works
 
 1. **Upload** — GPX/TCX are parsed as XML, FIT is parsed as binary via `fit-file-parser`, CSV

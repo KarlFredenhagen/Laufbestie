@@ -12,14 +12,19 @@ const TYPE_LABELS: Record<PlanDay["type"], string> = {
   cross_train: "Cross-Training",
 };
 
+type Busy = "generating" | "adapting" | null;
+
 export default function PlanView() {
   const [plan, setPlan] = useState<GeneratedPlan | null>(null);
   const [preferences, setPreferences] = useState<Preferences | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [activeWeek, setActiveWeek] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [busy, setBusy] = useState<Busy>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [adaptOpen, setAdaptOpen] = useState(false);
+  const [adaptNote, setAdaptNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +42,7 @@ export default function PlanView() {
   const handleWizardComplete = async (prefs: Preferences) => {
     setWizardOpen(false);
     setPreferences(prefs);
-    setGenerating(true);
+    setBusy("generating");
     setError(null);
     try {
       await api.savePreferences(prefs);
@@ -48,7 +53,37 @@ export default function PlanView() {
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setGenerating(false);
+      setBusy(null);
+    }
+  };
+
+  const handleAdapt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdaptOpen(false);
+    setBusy("adapting");
+    setError(null);
+    try {
+      const res = await api.adaptPlan(adaptNote);
+      setPlan(res.plan);
+      setCreatedAt(res.created_at);
+      setActiveWeek(0);
+      setAdaptNote("");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    setConfirmDelete(false);
+    setError(null);
+    try {
+      await api.deletePlan();
+      setPlan(null);
+      setCreatedAt(null);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
@@ -66,16 +101,55 @@ export default function PlanView() {
     <div className="page">
       <div className="plan-header">
         <h2>Dein Trainingsplan</h2>
-        {plan && !generating && (
-          <button onClick={() => setWizardOpen(true)} className="ghost-button">
-            Neuen Plan erstellen
-          </button>
+        {plan && !busy && (
+          <div className="plan-header-actions">
+            <button onClick={() => setAdaptOpen((v) => !v)} className="ghost-button">
+              Plan anpassen
+            </button>
+            <button onClick={() => setWizardOpen(true)} className="ghost-button">
+              Neuen Plan erstellen
+            </button>
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} className="ghost-button danger">
+                Plan löschen
+              </button>
+            ) : (
+              <>
+                <button onClick={handleDelete} className="danger">
+                  Wirklich löschen?
+                </button>
+                <button onClick={() => setConfirmDelete(false)} className="ghost-button">
+                  Abbrechen
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
       {error && <div className="banner error">{error}</div>}
 
-      {!plan && !generating && (
+      {adaptOpen && (
+        <form className="form" style={{ maxWidth: "100%" }} onSubmit={handleAdapt}>
+          <label>
+            Was hat sich geändert? (optional)
+            <textarea
+              rows={3}
+              value={adaptNote}
+              onChange={(e) => setAdaptNote(e.target.value)}
+              placeholder="z. B. war 10 Tage krank, Zieldatum hat sich verschoben, Knie zwickt gerade"
+            />
+          </label>
+          <div className="plan-header-actions">
+            <button type="submit">Plan anpassen</button>
+            <button type="button" className="ghost-button" onClick={() => setAdaptOpen(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      )}
+
+      {!plan && !busy && (
         <div className="empty-state">
           <div className="empty-state-icon">🏃‍♀️</div>
           <p>Noch kein Trainingsplan. Beantworte ein paar kurze Fragen und dein Coach erstellt dir einen.</p>
@@ -83,14 +157,18 @@ export default function PlanView() {
         </div>
       )}
 
-      {generating && (
+      {busy && (
         <div className="empty-state">
           <div className="spinner" />
-          <p className="muted">Der Coach denkt nach... das kann bis zu einer Minute dauern.</p>
+          <p className="muted">
+            {busy === "adapting"
+              ? "Der Coach passt deinen Plan an... das kann bis zu einer Minute dauern."
+              : "Der Coach denkt nach... das kann bis zu einer Minute dauern."}
+          </p>
         </div>
       )}
 
-      {plan && !generating && (
+      {plan && !busy && (
         <>
           <h3>{plan.plan_name}</h3>
           {createdAt && <p className="muted small">Erstellt am {new Date(createdAt).toLocaleString("de-DE")}</p>}

@@ -59,3 +59,11 @@ export interface GeneratedPlan {
   weeks: PlanWeek[];
   coach_notes: string;
 }
+
+export interface CalendarEvent {
+  id: number;
+  date: string; // ISO date
+  title: string;
+  notes: string | null;
+  created_at: string;
+}

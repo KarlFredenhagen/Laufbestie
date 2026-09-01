@@ -3,14 +3,17 @@ import UploadPage from "./components/UploadPage";
 import Dashboard from "./components/Dashboard";
 import PlanView from "./components/PlanView";
 import AskCoach from "./components/AskCoach";
+import CalendarView from "./components/CalendarView";
+import { BrandIcon, CalendarIcon, ChartIcon, ChatIcon, TargetIcon, UploadIcon } from "./components/icons";
 
-type Tab = "upload" | "dashboard" | "plan" | "ask";
+type Tab = "upload" | "dashboard" | "plan" | "calendar" | "ask";
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "upload", label: "Hochladen", icon: "⬆️" },
-  { id: "dashboard", label: "Übersicht", icon: "📊" },
-  { id: "plan", label: "Plan", icon: "🏃" },
-  { id: "ask", label: "Frag den Coach", icon: "💬" },
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: "upload", label: "Hochladen", icon: <UploadIcon /> },
+  { id: "dashboard", label: "Übersicht", icon: <ChartIcon /> },
+  { id: "plan", label: "Plan", icon: <TargetIcon /> },
+  { id: "calendar", label: "Kalender", icon: <CalendarIcon /> },
+  { id: "ask", label: "Frag den Coach", icon: <ChatIcon /> },
 ];
 
 export default function App() {
@@ -20,7 +23,9 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">🏃‍♂️</span>
+          <span className="brand-mark">
+            <BrandIcon />
+          </span>
           <h1>Laufplan Generator</h1>
         </div>
         <nav className="tabs">
@@ -37,6 +42,7 @@ export default function App() {
         {tab === "upload" && <UploadPage />}
         {tab === "dashboard" && <Dashboard />}
         {tab === "plan" && <PlanView />}
+        {tab === "calendar" && <CalendarView />}
         {tab === "ask" && <AskCoach />}
       </main>
     </div>

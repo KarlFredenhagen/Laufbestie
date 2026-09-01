@@ -54,6 +54,14 @@ export interface GeneratedPlan {
   coach_notes: string;
 }
 
+export interface CalendarEvent {
+  id: number;
+  date: string;
+  title: string;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface UploadResult {
   imported: number;
   duplicates: number;

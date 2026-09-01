@@ -1,4 +1,4 @@
-import { GeneratedPlan, Preferences, StoredActivity, TrainingSummary, UploadResult } from "./types";
+import { CalendarEvent, GeneratedPlan, Preferences, StoredActivity, TrainingSummary, UploadResult } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -7,6 +7,8 @@ async function json<T>(res: Response): Promise<T> {
   }
   return res.json();
 }
+
+type PlanResponse = { id: number; plan: GeneratedPlan; created_at: string };
 
 export const api = {
   uploadFiles: async (files: FileList | File[]): Promise<UploadResult> => {
@@ -40,14 +42,28 @@ export const api = {
     await json(res);
   },
 
-  getPlan: async (): Promise<{ id: number; plan: GeneratedPlan; created_at: string } | null> => {
+  getPlan: async (): Promise<PlanResponse | null> => {
     const res = await fetch("/api/plan");
     return json(res);
   },
 
-  generatePlan: async (): Promise<{ id: number; plan: GeneratedPlan; created_at: string }> => {
+  generatePlan: async (): Promise<PlanResponse> => {
     const res = await fetch("/api/plan/generate", { method: "POST" });
     return json(res);
+  },
+
+  adaptPlan: async (note: string): Promise<PlanResponse> => {
+    const res = await fetch("/api/plan/adapt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    return json(res);
+  },
+
+  deletePlan: async (): Promise<void> => {
+    const res = await fetch("/api/plan", { method: "DELETE" });
+    await json(res);
   },
 
   askCoach: async (question: string): Promise<{ answer: string }> => {
@@ -57,5 +73,24 @@ export const api = {
       body: JSON.stringify({ question }),
     });
     return json(res);
+  },
+
+  getEvents: async (): Promise<CalendarEvent[]> => {
+    const res = await fetch("/api/events");
+    return json(res);
+  },
+
+  createEvent: async (event: { date: string; title: string; notes?: string }): Promise<CalendarEvent> => {
+    const res = await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event),
+    });
+    return json(res);
+  },
+
+  deleteEvent: async (id: number): Promise<void> => {
+    const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+    await json(res);
   },
 };
