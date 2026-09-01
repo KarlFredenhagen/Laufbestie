@@ -591,9 +591,40 @@ button.danger:hover {
 .day-card.type-cross_train {
   border-left-color: #8e44ad;
 }
+.day-card.type-strength {
+  border-left-color: #d4a017;
+}
 .day-card.type-rest {
   border-left-color: var(--muted);
   opacity: 0.7;
+}
+
+.rpe-row {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+
+.rpe-btn {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+.rpe-btn:hover {
+  opacity: 0.85;
+  transform: none;
+}
+
+.rpe-btn.selected {
+  opacity: 1;
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 
 .day-card-header {
@@ -872,6 +903,14 @@ button.danger:hover {
 
 .wizard-field textarea {
   width: 100%;
+}
+
+.wizard-field label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .wizard-summary ul {

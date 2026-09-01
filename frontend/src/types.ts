@@ -24,6 +24,13 @@ export interface TrainingSummary {
 export type GoalDistance = "5k" | "10k" | "half_marathon" | "marathon" | "general_fitness";
 export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 
+export interface ManualBests {
+  five_k_seconds: number | null;
+  ten_k_seconds: number | null;
+  half_marathon_seconds: number | null;
+  marathon_seconds: number | null;
+}
+
 export interface Preferences {
   goal_distance: GoalDistance;
   target_date: string | null;
@@ -32,11 +39,12 @@ export interface Preferences {
   experience_level: ExperienceLevel | null;
   constraints_notes: string | null;
   long_run_day: string;
+  manual_bests: ManualBests | null;
 }
 
 export interface PlanDay {
   day: string;
-  type: "rest" | "easy_run" | "long_run" | "tempo" | "intervals" | "cross_train";
+  type: "rest" | "easy_run" | "long_run" | "tempo" | "intervals" | "cross_train" | "strength";
   distance_km: number;
   target_pace: string;
   notes: string;
@@ -60,6 +68,29 @@ export interface CalendarEvent {
   title: string;
   notes: string | null;
   created_at: string;
+}
+
+export type DistanceLabel = "5k" | "10k" | "half_marathon" | "marathon";
+
+export interface PersonalBest {
+  distance_label: DistanceLabel;
+  target_km: number;
+  best_time_seconds: number;
+  activity_distance_km: number | null;
+  date: string | null;
+  source: "activity" | "manual";
+}
+
+export interface RacePrediction {
+  distance_label: DistanceLabel;
+  target_km: number;
+  predicted_seconds: number;
+}
+
+export interface RunFeedback {
+  date: string;
+  rpe: 1 | 2 | 3;
+  note: string | null;
 }
 
 export interface UploadResult {

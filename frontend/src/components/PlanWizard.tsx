@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ExperienceLevel, GoalDistance, Preferences } from "../types";
+import { ExperienceLevel, GoalDistance, ManualBests, Preferences } from "../types";
+import { formatDuration, parseTimeToSeconds } from "../timeFormat";
 
 const DAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 const DAY_SHORT: Record<string, string> = {
@@ -27,6 +28,20 @@ const LEVELS: { value: ExperienceLevel | ""; label: string; icon: string }[] = [
   { value: "advanced", label: "Erfahren", icon: "🚀" },
 ];
 
+const BEST_FIELDS: { key: keyof ManualBests; label: string }[] = [
+  { key: "five_k_seconds", label: "5 km" },
+  { key: "ten_k_seconds", label: "10 km" },
+  { key: "half_marathon_seconds", label: "Halbmarathon" },
+  { key: "marathon_seconds", label: "Marathon" },
+];
+
+const EMPTY_BESTS: ManualBests = {
+  five_k_seconds: null,
+  ten_k_seconds: null,
+  half_marathon_seconds: null,
+  marathon_seconds: null,
+};
+
 const DEFAULT_PREFS: Preferences = {
   goal_distance: "10k",
   target_date: null,
@@ -35,6 +50,7 @@ const DEFAULT_PREFS: Preferences = {
   experience_level: null,
   constraints_notes: "",
   long_run_day: "Samstag",
+  manual_bests: null,
 };
 
 interface Props {
@@ -50,14 +66,28 @@ const STEP_TITLES = [
   "Brauchst du feste Ruhetage?",
   "Wann läufst du am liebsten lang?",
   "Wie erfahren bist du?",
+  "Kennst du deine Bestzeiten?",
   "Verletzungen oder Einschränkungen?",
   "Alles bereit?",
 ];
+
+function initialBestInputs(bests: ManualBests | null | undefined): Record<keyof ManualBests, string> {
+  const b = bests ?? EMPTY_BESTS;
+  return {
+    five_k_seconds: b.five_k_seconds != null ? formatDuration(b.five_k_seconds) : "",
+    ten_k_seconds: b.ten_k_seconds != null ? formatDuration(b.ten_k_seconds) : "",
+    half_marathon_seconds: b.half_marathon_seconds != null ? formatDuration(b.half_marathon_seconds) : "",
+    marathon_seconds: b.marathon_seconds != null ? formatDuration(b.marathon_seconds) : "",
+  };
+}
 
 export default function PlanWizard({ initial, onCancel, onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [prefs, setPrefs] = useState<Preferences>(initial ?? DEFAULT_PREFS);
   const [noDate, setNoDate] = useState(!initial?.target_date);
+  const [bestInputs, setBestInputs] = useState<Record<keyof ManualBests, string>>(() =>
+    initialBestInputs(initial?.manual_bests)
+  );
 
   const lastStep = STEP_TITLES.length - 1;
 
@@ -69,6 +99,15 @@ export default function PlanWizard({ initial, onCancel, onComplete }: Props) {
     setPrefs((p) => ({
       ...p,
       rest_days: p.rest_days.includes(day) ? p.rest_days.filter((d) => d !== day) : [...p.rest_days, day],
+    }));
+  };
+
+  const updateBestInput = (key: keyof ManualBests, raw: string) => {
+    setBestInputs((prev) => ({ ...prev, [key]: raw }));
+    const seconds = parseTimeToSeconds(raw);
+    setPrefs((p) => ({
+      ...p,
+      manual_bests: { ...(p.manual_bests ?? EMPTY_BESTS), [key]: seconds },
     }));
   };
 
@@ -197,6 +236,26 @@ export default function PlanWizard({ initial, onCancel, onComplete }: Props) {
 
         {step === 6 && (
           <div className="wizard-field">
+            <p className="muted small" style={{ textAlign: "center", margin: "-0.5rem 0 0.5rem" }}>
+              Optional — vor allem hilfreich, wenn du noch keine Läufe hochgeladen hast. Format: mm:ss oder h:mm:ss.
+            </p>
+            {BEST_FIELDS.map(({ key, label }) => (
+              <label key={key} style={{ width: "100%" }}>
+                {label}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="z. B. 24:30"
+                  value={bestInputs[key]}
+                  onChange={(e) => updateBestInput(key, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+        )}
+
+        {step === 7 && (
+          <div className="wizard-field">
             <textarea
               rows={4}
               value={prefs.constraints_notes ?? ""}
@@ -227,6 +286,14 @@ export default function PlanWizard({ initial, onCancel, onComplete }: Props) {
               <li>
                 <strong>Level:</strong> {LEVELS.find((l) => l.value === (prefs.experience_level ?? ""))?.label}
               </li>
+              {BEST_FIELDS.some(({ key }) => prefs.manual_bests?.[key] != null) && (
+                <li>
+                  <strong>Bestzeiten:</strong>{" "}
+                  {BEST_FIELDS.filter(({ key }) => prefs.manual_bests?.[key] != null)
+                    .map(({ key, label }) => `${label}: ${formatDuration(prefs.manual_bests![key]!)}`)
+                    .join(", ")}
+                </li>
+              )}
               {prefs.constraints_notes && (
                 <li>
                   <strong>Hinweise:</strong> {prefs.constraints_notes}

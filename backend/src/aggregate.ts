@@ -1,4 +1,4 @@
-import { StoredActivity, TrainingSummary } from "./types";
+import { StoredActivity, TrainingSummary, PersonalBest, RacePrediction, ManualBests } from "./types";
 
 const WEEKS_OF_HISTORY = 10;
 const MS_PER_DAY = 86_400_000;
@@ -122,4 +122,99 @@ export function buildTrainingSummary(activities: StoredActivity[]): TrainingSumm
     elevation_gain_trend,
     fastest_recent_effort,
   };
+}
+
+const RACE_DISTANCES: { label: PersonalBest["distance_label"]; km: number }[] = [
+  { label: "5k", km: 5 },
+  { label: "10k", km: 10 },
+  { label: "half_marathon", km: 21.0975 },
+  { label: "marathon", km: 42.195 },
+];
+
+// A run only counts toward a distance's PB if it's close enough to that distance — otherwise
+// e.g. a 30km long run would "win" the 10K best time simply by being run faster overall than
+// any actual 10K, which isn't a meaningful comparison.
+const PB_TOLERANCE = 0.05; // ±5%
+
+// "Best known time near this distance" rather than a true PB — we only have whole-activity
+// distance/duration, not GPS splits, so we can't interpolate an exact-distance time.
+export function computePersonalBests(activities: StoredActivity[]): PersonalBest[] {
+  const bests: PersonalBest[] = [];
+
+  for (const { label, km } of RACE_DISTANCES) {
+    const candidates = activities.filter((a) => Math.abs(a.distance_km - km) / km <= PB_TOLERANCE);
+    if (candidates.length === 0) continue;
+
+    const best = candidates.reduce((fastest, a) => (a.duration_seconds < fastest.duration_seconds ? a : fastest));
+    bests.push({
+      distance_label: label,
+      target_km: km,
+      best_time_seconds: Math.round(best.duration_seconds),
+      activity_distance_km: best.distance_km,
+      date: best.date,
+      source: "activity",
+    });
+  }
+
+  return bests;
+}
+
+const MANUAL_BEST_FIELD: Record<PersonalBest["distance_label"], keyof ManualBests> = {
+  "5k": "five_k_seconds",
+  "10k": "ten_k_seconds",
+  half_marathon: "half_marathon_seconds",
+  marathon: "marathon_seconds",
+};
+
+// Merges self-reported best times (from the wizard) with ones derived from uploaded
+// activities. A manual entry is taken at face value — it's the person telling us a fact,
+// possibly from an untracked race — so it wins over a same-distance activity-derived time.
+export function mergeManualBests(computed: PersonalBest[], manual: ManualBests | null): PersonalBest[] {
+  if (!manual) return computed;
+
+  const byDistance = new Map(computed.map((b) => [b.distance_label, b]));
+
+  for (const { label, km } of RACE_DISTANCES) {
+    const seconds = manual[MANUAL_BEST_FIELD[label]];
+    if (seconds === null || seconds === undefined) continue;
+    byDistance.set(label, {
+      distance_label: label,
+      target_km: km,
+      best_time_seconds: seconds,
+      activity_distance_km: null,
+      date: null,
+      source: "manual",
+    });
+  }
+
+  return RACE_DISTANCES.map(({ label }) => byDistance.get(label)).filter((b): b is PersonalBest => b !== undefined);
+}
+
+// Riegel's race-time-prediction formula: T2 = T1 * (D2/D1)^1.06. A well-established, publicly
+// documented model (Pete Riegel, 1977) for extrapolating a finish time at one distance from a
+// real effort at another, assuming similar training/conditions.
+function riegelPredict(knownSeconds: number, knownKm: number, targetKm: number): number {
+  return knownSeconds * Math.pow(targetKm / knownKm, 1.06);
+}
+
+// Predicts standard race times from the single best recent effort (last 90 days), so the
+// prediction reflects current fitness rather than a lifetime-best that may be stale.
+export function computeRacePredictions(activities: StoredActivity[]): RacePrediction[] {
+  const ninetyDaysAgo = new Date(Date.now() - 90 * MS_PER_DAY);
+  const recent = activities.filter((a) => new Date(a.date) >= ninetyDaysAgo && a.distance_km >= 1.5);
+  if (recent.length === 0) return [];
+
+  // Same distance-normalized scoring as fastest_recent_effort: favors a genuinely strong
+  // effort over a merely fast-but-short run.
+  const best = recent.reduce((fastest, a) => {
+    const scoreA = a.avg_pace_per_km / Math.sqrt(a.distance_km);
+    const scoreFastest = fastest.avg_pace_per_km / Math.sqrt(fastest.distance_km);
+    return scoreA < scoreFastest ? a : fastest;
+  });
+
+  return RACE_DISTANCES.map(({ label, km }) => ({
+    distance_label: label,
+    target_km: km,
+    predicted_seconds: Math.round(riegelPredict(best.duration_seconds, best.distance_km, km)),
+  }));
 }

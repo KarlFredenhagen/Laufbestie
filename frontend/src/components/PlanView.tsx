@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { GeneratedPlan, Preferences, PlanDay } from "../types";
+import { GeneratedPlan, Preferences, PlanDay, RunFeedback } from "../types";
 import PlanWizard from "./PlanWizard";
 
 const TYPE_LABELS: Record<PlanDay["type"], string> = {
@@ -10,7 +10,26 @@ const TYPE_LABELS: Record<PlanDay["type"], string> = {
   tempo: "Tempolauf",
   intervals: "Intervalle",
   cross_train: "Cross-Training",
+  strength: "Krafttraining",
 };
+
+const GERMAN_WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
+const RPE_OPTIONS: { value: 1 | 2 | 3; icon: string; label: string }[] = [
+  { value: 1, icon: "😞", label: "Hart" },
+  { value: 2, icon: "😐", label: "Okay" },
+  { value: 3, icon: "😄", label: "Super" },
+];
+
+// Plan days only carry a weekday name + the week's Monday start_date — this derives the
+// actual calendar date for a given day, needed to key the feedback check-in.
+function dateForDay(weekStartDate: string, dayName: string): string {
+  const offset = GERMAN_WEEKDAYS.indexOf(dayName);
+  if (offset < 0) return weekStartDate;
+  const d = new Date(weekStartDate + "T00:00:00");
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 type Busy = "generating" | "adapting" | null;
 
@@ -19,6 +38,7 @@ export default function PlanView() {
   const [preferences, setPreferences] = useState<Preferences | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [activeWeek, setActiveWeek] = useState(0);
+  const [feedback, setFeedback] = useState<Record<string, RunFeedback>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<Busy>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -28,13 +48,14 @@ export default function PlanView() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.getPlan(), api.getPreferences()])
-      .then(([planRes, prefsRes]) => {
+    Promise.all([api.getPlan(), api.getPreferences(), api.getFeedback()])
+      .then(([planRes, prefsRes, feedbackRes]) => {
         if (planRes) {
           setPlan(planRes.plan);
           setCreatedAt(planRes.created_at);
         }
         setPreferences(prefsRes);
+        setFeedback(Object.fromEntries(feedbackRes.map((f) => [f.date, f])));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -82,6 +103,15 @@ export default function PlanView() {
       await api.deletePlan();
       setPlan(null);
       setCreatedAt(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleRate = async (date: string, rpe: 1 | 2 | 3) => {
+    setFeedback((prev) => ({ ...prev, [date]: { date, rpe, note: prev[date]?.note ?? null } }));
+    try {
+      await api.saveFeedback(date, rpe);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -187,21 +217,40 @@ export default function PlanView() {
           </div>
 
           <div className="day-cards">
-            {plan.weeks[activeWeek].days.map((day) => (
-              <div key={day.day} className={`day-card type-${day.type}`}>
-                <div className="day-card-header">
-                  <strong>{day.day}</strong>
-                  <span className="day-type">{TYPE_LABELS[day.type] ?? day.type}</span>
-                </div>
-                {day.type !== "rest" && (
-                  <div className="day-card-body">
-                    <div>{day.distance_km} km</div>
-                    <div className="muted">{day.target_pace}</div>
+            {plan.weeks[activeWeek].days.map((day) => {
+              const date = dateForDay(plan.weeks[activeWeek].start_date, day.day);
+              const rated = feedback[date]?.rpe;
+              return (
+                <div key={day.day} className={`day-card type-${day.type}`}>
+                  <div className="day-card-header">
+                    <strong>{day.day}</strong>
+                    <span className="day-type">{TYPE_LABELS[day.type] ?? day.type}</span>
                   </div>
-                )}
-                {day.notes && <p className="day-notes">{day.notes}</p>}
-              </div>
-            ))}
+                  {day.type !== "rest" && (
+                    <div className="day-card-body">
+                      <div>{day.distance_km} km</div>
+                      <div className="muted">{day.target_pace}</div>
+                    </div>
+                  )}
+                  {day.notes && <p className="day-notes">{day.notes}</p>}
+                  {day.type !== "rest" && (
+                    <div className="rpe-row">
+                      {RPE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          title={opt.label}
+                          className={`rpe-btn ${rated === opt.value ? "selected" : ""}`}
+                          onClick={() => handleRate(date, opt.value)}
+                        >
+                          {opt.icon}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}

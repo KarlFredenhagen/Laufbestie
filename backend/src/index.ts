@@ -8,6 +8,7 @@ import { preferencesRouter } from "./routes/preferences";
 import { planRouter } from "./routes/plan";
 import { askRouter } from "./routes/ask";
 import { eventsRouter } from "./routes/events";
+import { feedbackRouter } from "./routes/feedback";
 import { authRouter } from "./routes/auth";
 import { requireAuth } from "./middleware/requireAuth";
 
@@ -27,6 +28,7 @@ app.use("/api/preferences", requireAuth, preferencesRouter);
 app.use("/api/plan", requireAuth, planRouter);
 app.use("/api/ask", requireAuth, askRouter);
 app.use("/api/events", requireAuth, eventsRouter);
+app.use("/api/feedback", requireAuth, feedbackRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

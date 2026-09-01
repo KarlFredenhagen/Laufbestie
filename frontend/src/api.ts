@@ -1,4 +1,14 @@
-import { CalendarEvent, GeneratedPlan, Preferences, StoredActivity, TrainingSummary, UploadResult } from "./types";
+import {
+  CalendarEvent,
+  GeneratedPlan,
+  PersonalBest,
+  Preferences,
+  RacePrediction,
+  RunFeedback,
+  StoredActivity,
+  TrainingSummary,
+  UploadResult,
+} from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -111,6 +121,25 @@ export const api = {
 
   deleteEvent: async (id: number): Promise<void> => {
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+    await json(res);
+  },
+
+  getBests: async (): Promise<{ personal_bests: PersonalBest[]; predictions: RacePrediction[] }> => {
+    const res = await fetch("/api/activities/bests");
+    return json(res);
+  },
+
+  getFeedback: async (): Promise<RunFeedback[]> => {
+    const res = await fetch("/api/feedback");
+    return json(res);
+  },
+
+  saveFeedback: async (date: string, rpe: 1 | 2 | 3, note?: string): Promise<void> => {
+    const res = await fetch("/api/feedback", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date, rpe, note }),
+    });
     await json(res);
   },
 };

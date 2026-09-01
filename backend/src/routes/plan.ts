@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db";
-import { StoredActivity, Preferences, CalendarEvent, GeneratedPlan } from "../types";
+import { StoredActivity, Preferences, CalendarEvent, GeneratedPlan, RunFeedback } from "../types";
 import { buildTrainingSummary } from "../aggregate";
 import { generatePlan, adaptPlan } from "../claude";
 
@@ -24,6 +24,14 @@ function loadUpcomingEvents(userId: number): CalendarEvent[] {
   return db
     .prepare("SELECT * FROM events WHERE user_id = ? AND date >= ? ORDER BY date ASC LIMIT 50")
     .all(userId, today) as unknown as CalendarEvent[];
+}
+
+// Only the last 6 weeks of check-ins are relevant for deciding whether to ease off.
+function loadRecentFeedback(userId: number): RunFeedback[] {
+  const sixWeeksAgo = new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return db
+    .prepare("SELECT date, rpe, note FROM run_feedback WHERE user_id = ? AND date >= ? ORDER BY date DESC")
+    .all(userId, sixWeeksAgo) as unknown as RunFeedback[];
 }
 
 // Latest cached plan, if one exists.
@@ -73,9 +81,10 @@ planRouter.post("/adapt", async (req, res) => {
     const currentPlan = JSON.parse(row.plan_json) as GeneratedPlan;
     const summary = loadSummary(userId);
     const events = loadUpcomingEvents(userId);
+    const feedback = loadRecentFeedback(userId);
     const changeNote = (req.body?.note as string | undefined)?.trim() ?? "";
 
-    const plan = await adaptPlan(currentPlan, summary, preferences, events, changeNote);
+    const plan = await adaptPlan(currentPlan, summary, preferences, events, feedback, changeNote);
 
     const info = db
       .prepare("INSERT INTO plans (user_id, plan_json, summary_json, preferences_json) VALUES (?, ?, ?, ?)")

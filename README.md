@@ -137,6 +137,23 @@ In the "Plan" tab, once a plan exists you get three actions:
 - **Neuen Plan erstellen** — starts over from the preferences wizard.
 - **Plan löschen** — clears the current plan back to the empty state.
 
+## Personal bests, race predictions, and feedback
+
+- **Persönliche Bestzeiten** (Dashboard): best known time near each standard distance
+  (5K/10K/half/marathon), computed from uploaded activities within ±5% of the target distance
+  (there's no GPS-split data to interpolate an exact-distance time from). You can also enter
+  bests manually in the plan wizard — useful if you haven't uploaded anything yet; a manual
+  entry always takes priority over an activity-derived one for the same distance, since it's
+  you stating a fact (e.g. an untracked race) rather than an approximation.
+- **Rennzeit-Prognose**: projected finish times extrapolated from your single best recent
+  effort (last 90 days) using Riegel's race-time-prediction formula
+  (`T2 = T1 * (D2/D1)^1.06`), a well-established public formula — not a Claude call, pure math.
+- **Gefühls-Check-in**: tap 😞/😐/😄 on any non-rest day in the plan to log how it felt. Recent
+  check-ins are sent to Claude as context when you click "Plan anpassen", so a run of hard/bad
+  ratings nudges the next weeks toward easier training even without writing a note about it.
+- **Krafttraining**: the plan can include a `strength` day type (short strength/mobility
+  session) alongside the running day types, when it fits the schedule.
+
 ## How it works
 
 1. **Upload** — GPX/TCX are parsed as XML, FIT is parsed as binary via `fit-file-parser`, CSV

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
-import { StoredActivity, TrainingSummary } from "../types";
+import { DistanceLabel, PersonalBest, RacePrediction, StoredActivity, TrainingSummary } from "../types";
+import { formatDuration } from "../timeFormat";
 
 function formatPace(secPerKm: number): string {
   if (!secPerKm) return "-";
@@ -24,17 +25,30 @@ const ELEVATION_TREND_LABELS: Record<TrainingSummary["elevation_gain_trend"], st
   unavailable: "Keine Daten",
 };
 
+const DISTANCE_LABELS: Record<DistanceLabel, string> = {
+  "5k": "5 km",
+  "10k": "10 km",
+  half_marathon: "Halbmarathon",
+  marathon: "Marathon",
+};
+
+const DISTANCE_ORDER: DistanceLabel[] = ["5k", "10k", "half_marathon", "marathon"];
+
 export default function Dashboard() {
   const [activities, setActivities] = useState<StoredActivity[]>([]);
   const [summary, setSummary] = useState<TrainingSummary | null>(null);
+  const [personalBests, setPersonalBests] = useState<PersonalBest[]>([]);
+  const [predictions, setPredictions] = useState<RacePrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.getActivities(), api.getSummary()])
-      .then(([a, s]) => {
+    Promise.all([api.getActivities(), api.getSummary(), api.getBests()])
+      .then(([a, s, bests]) => {
         setActivities(a);
         setSummary(s);
+        setPersonalBests(bests.personal_bests);
+        setPredictions(bests.predictions);
       })
       .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
@@ -48,9 +62,35 @@ export default function Dashboard() {
     "Distanz (km)": w.distance_km,
   }));
 
+  const bestsByDistance = Object.fromEntries(personalBests.map((b) => [b.distance_label, b]));
+  const predictionsByDistance = Object.fromEntries(predictions.map((p) => [p.distance_label, p]));
+
   return (
     <div className="page">
       <h2>Übersicht</h2>
+
+      {(personalBests.length > 0 || predictions.length > 0) && (
+        <>
+          <h3>Persönliche Bestzeiten</h3>
+          <div className="stat-grid">
+            {DISTANCE_ORDER.map((label) => {
+              const best = bestsByDistance[label];
+              const prediction = predictionsByDistance[label];
+              if (!best && !prediction) return null;
+              return (
+                <div className="stat-card" key={label}>
+                  <div className="stat-label">{DISTANCE_LABELS[label]}</div>
+                  <div className="stat-value">{best ? formatDuration(best.best_time_seconds) : "-"}</div>
+                  {best && <div className="muted small">{best.source === "manual" ? "selbst angegeben" : `${best.activity_distance_km?.toFixed(1)} km am ${best.date}`}</div>}
+                  {prediction && (
+                    <div className="muted small">Prognose (aktuelle Form): {formatDuration(prediction.predicted_seconds)}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {activities.length === 0 ? (
         <p className="muted">Noch keine Aktivitäten. Lade ein paar Läufe hoch, um loszulegen.</p>

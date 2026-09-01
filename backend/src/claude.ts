@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { CalendarEvent, GeneratedPlan, Preferences, TrainingSummary } from "./types";
+import { CalendarEvent, GeneratedPlan, Preferences, TrainingSummary, RunFeedback } from "./types";
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
 
@@ -22,7 +22,7 @@ const EXAMPLE_OUTPUT: GeneratedPlan = {
         { day: "Dienstag", type: "easy_run", distance_km: 5, target_pace: "6:00-6:20/km", notes: "Lockeres Tempo, Fokus auf sauberer Technik." },
         { day: "Mittwoch", type: "rest", distance_km: 0, target_pace: "-", notes: "Pause oder leichtes Cross-Training." },
         { day: "Donnerstag", type: "tempo", distance_km: 6, target_pace: "5:20-5:35/km", notes: "10 Min. Einlaufen, 20 Min. im Tempo, 10 Min. Auslaufen." },
-        { day: "Freitag", type: "rest", distance_km: 0, target_pace: "-", notes: "Pause." },
+        { day: "Freitag", type: "strength", distance_km: 0, target_pace: "-", notes: "20-30 Min. Rumpf- und Beinkraft (z.B. Kniebeugen, Ausfallschritte, Planks)." },
         { day: "Samstag", type: "long_run", distance_km: 10, target_pace: "6:10-6:30/km", notes: "Ruhig angehen, hier zählt Zeit auf den Beinen." },
         { day: "Sonntag", type: "cross_train", distance_km: 0, target_pace: "-", notes: "30-40 Min. lockeres Radfahren oder Schwimmen." },
       ],
@@ -40,7 +40,7 @@ const PLAN_SCHEMA_BLOCK = `{
       "days": [
         {
           "day": "Montag",
-          "type": "rest | easy_run | long_run | tempo | intervals | cross_train",
+          "type": "rest | easy_run | long_run | tempo | intervals | cross_train | strength",
           "distance_km": 5.0,
           "target_pace": "string, z.B. '5:30-5:50/km'",
           "notes": "string"
@@ -58,11 +58,13 @@ const PLAN_RULES = `- graduell aufbaut (wöchentliche Gesamtdistanz nicht um meh
 - Verletzungs-/Einschränkungshinweise durch angepasste Intensität/Umfang berücksichtigt
 - auf das Zieldatum/die Zieldistanz hinarbeitet, falls angegeben, sonst auf allgemeine Fitness
 - eine Mischung aus lockeren Läufen, gelegentlichen Tempo-/Intervalleinheiten (bei fortgeschrittenem Level) und Langläufen enthält, restliche Tage als Pause oder Cross-Training
-- bekannte anstehende Termine berücksichtigt (z.B. an Reisetagen keine langen Läufe einplanen, ein Termin am Wunsch-Langlauftag verschiebt den Langlauf auf einen anderen Tag)`;
+- nach Möglichkeit 1 (max. 2) kurze Krafttraining-Einheiten pro Woche einplant (Tagestyp "strength", 20-30 Min. Rumpf-/Beinkraft) — hilft Verletzungen vorzubeugen, aber nicht auf Kosten von Pflicht-Ruhetagen
+- bekannte anstehende Termine berücksichtigt (z.B. an Reisetagen keine langen Läufe einplanen, ein Termin am Wunsch-Langlauftag verschiebt den Langlauf auf einen anderen Tag)
+- vorhandene Ziel-Paces realistisch kalibriert: nutze primär "training_summary", falls diese kaum Daten enthält (z.B. keine oder sehr wenige hochgeladene Läufe) aber "preferences.manual_bests" vorhanden ist, kalibriere die Paces stattdessen anhand dieser selbst angegebenen Bestzeiten`;
 
 const GENERATE_SYSTEM_PROMPT = `Du bist ein erfahrener Lauftrainer, der personalisierte, sichere und realistische Trainingspläne erstellt.
 
-Du erhältst ein JSON-Objekt mit: "current_date" (heutiges Datum), "training_summary" (aggregierte Trainingshistorie), "preferences" (Ziel, Zieldistanz/-datum, wöchentliche Verfügbarkeit, Pflicht-Ruhetage, Erfahrungslevel, Einschränkungen, bevorzugter Langlauftag) und optional "upcoming_events" (bekannte Termine wie Reisen, Rennen o.ä.).
+Du erhältst ein JSON-Objekt mit: "current_date" (heutiges Datum), "training_summary" (aggregierte Trainingshistorie — kann leer/spärlich sein, wenn noch keine Läufe hochgeladen wurden), "preferences" (Ziel, Zieldistanz/-datum, wöchentliche Verfügbarkeit, Pflicht-Ruhetage, Erfahrungslevel, Einschränkungen, bevorzugter Langlauftag, optional "manual_bests" mit selbst angegebenen Bestzeiten für 5 km/10 km/Halbmarathon/Marathon in Sekunden) und optional "upcoming_events" (bekannte Termine wie Reisen, Rennen o.ä.).
 
 Erstelle einen wochenweisen Trainingsplan, der bei "current_date" bzw. dem darauffolgenden Montag beginnt, und der:
 ${PLAN_RULES}
@@ -80,7 +82,9 @@ Hier ist ein vollständiges Beispiel für eine gültige Antwort:
 
 ${JSON.stringify(EXAMPLE_OUTPUT, null, 2)}`;
 
-const ADAPT_SYSTEM_PROMPT = `Du bist ein erfahrener Lauftrainer. Du bekommst einen bereits bestehenden Trainingsplan (JSON) sowie eine aktualisierte Trainingszusammenfassung, die aktuellen Präferenzen, optional anstehende Termine, und eine kurze Notiz der Person dazu, was sich geändert hat (z.B. Krankheit, Verletzung, verschobenes Ziel-Rennen, mehr/weniger Zeit).
+const ADAPT_SYSTEM_PROMPT = `Du bist ein erfahrener Lauftrainer. Du bekommst einen bereits bestehenden Trainingsplan (JSON) sowie eine aktualisierte Trainingszusammenfassung, die aktuellen Präferenzen, optional anstehende Termine, optional "recent_feedback" (Gefühls-Check-ins zu einzelnen Lauftagen: rpe 1 = hart/schwer, 2 = okay, 3 = super, plus optionale Notiz), und eine kurze Notiz der Person dazu, was sich geändert hat (z.B. Krankheit, Verletzung, verschobenes Ziel-Rennen, mehr/weniger Zeit).
+
+Wenn "recent_feedback" überwiegend niedrige Werte (1) zeigt, ist das ein Signal, Umfang/Intensität in den kommenden Wochen zu reduzieren, auch ohne explizite Notiz dazu.
 
 Du erhältst zusätzlich "current_date" (heutiges Datum). Wochen mit "start_date" vor "current_date" gelten als bereits gelaufen — lass sie inhaltlich unverändert, außer die Notiz verlangt ausdrücklich etwas anderes. Passe die aktuelle und alle zukünftigen Wochen an die neue Situation an: Umfang/Intensität reduzieren oder anpassen bei Krankheit/Verletzung, den Aufbau neu takten bei geändertem Zieldatum, Rücksicht auf neue Termine nehmen, usw.
 
@@ -170,6 +174,7 @@ export async function adaptPlan(
   summary: TrainingSummary,
   preferences: Preferences,
   events: CalendarEvent[],
+  feedback: RunFeedback[],
   changeNote: string
 ): Promise<GeneratedPlan> {
   const userMessage = JSON.stringify(
@@ -179,6 +184,7 @@ export async function adaptPlan(
       training_summary: summary,
       preferences,
       upcoming_events: events,
+      recent_feedback: feedback,
       change_note: changeNote || "Keine spezifische Notiz — bitte anhand der aktuellen Trainingsdaten und Termine sinnvoll anpassen.",
     },
     null,
