@@ -4,8 +4,10 @@ import { Preferences } from "../types";
 
 export const preferencesRouter = Router();
 
-preferencesRouter.get("/", (_req, res) => {
-  const row = db.prepare("SELECT data FROM preferences WHERE id = 1").get() as { data: string } | undefined;
+preferencesRouter.get("/", (req, res) => {
+  const row = db.prepare("SELECT data FROM preferences WHERE user_id = ?").get(req.userId!) as
+    | { data: string }
+    | undefined;
   res.json(row ? JSON.parse(row.data) : null);
 });
 
@@ -17,9 +19,9 @@ preferencesRouter.put("/", (req, res) => {
   }
 
   db.prepare(
-    `INSERT INTO preferences (id, data, updated_at) VALUES (1, ?, datetime('now'))
-     ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`
-  ).run(JSON.stringify(prefs));
+    `INSERT INTO preferences (user_id, data, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`
+  ).run(req.userId!, JSON.stringify(prefs));
 
   res.json({ ok: true });
 });

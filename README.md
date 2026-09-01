@@ -10,7 +10,9 @@ Also works as an installable PWA — see [Installing on your phone](#installing-
 
 - **Backend**: Node.js + Express + TypeScript, SQLite (via Node's built-in `node:sqlite`)
 - **Frontend**: React + Vite PWA, plain CSS, Recharts for the mileage chart
-- No user accounts — this is a single-user local tool.
+- Email+password login, cookie-based sessions. No public sign-up — accounts are created
+  manually (see [Accounts](#accounts)). Each account's activities/preferences/plans/events
+  are fully separate.
 
 ## Project layout
 
@@ -61,7 +63,19 @@ can be installed as a PWA; browsers only allow PWA install and offline support o
 origins. The Vite dev server proxies `/api/*` requests to the backend, so just use the
 frontend URL for everything.
 
-## 3. Export your run data
+## 3. Accounts
+
+There's no sign-up page on purpose — create your account from the command line:
+
+```bash
+cd backend
+npm run create-user -- you@example.com "a good password"
+```
+
+Run it again with different credentials to add another account (e.g. for a partner). Log in
+at the app's URL with that email/password; sessions last 30 days via an httpOnly cookie.
+
+## 4. Export your run data
 
 **Easiest: Garmin Connect CSV export.** Go to your Activities list on
 [connect.garmin.com](https://connect.garmin.com) and click **Export CSV** — this downloads one
@@ -142,6 +156,12 @@ In the "Plan" tab, once a plan exists you get three actions:
 ## Notes
 
 - Database file lives at `backend/data/app.db` (gitignored).
+- Passwords are hashed with Node's built-in `crypto.scrypt` (salted, timing-safe compare) —
+  no bcrypt/argon2 native dependency needed. Sessions are random tokens stored in a `sessions`
+  table, sent as an httpOnly, secure, sameSite=lax cookie; there's no JWT/stateless auth, so a
+  session can be revoked instantly (e.g. deleting its row) if needed.
+- There's no CORS setup because there's nothing cross-origin to allow: the frontend and API
+  are always same-origin (Vite's dev proxy locally, the same Express process in production).
 - `better-sqlite3` was intentionally avoided — it requires a native build toolchain, which isn't
   guaranteed to be present (e.g. no Visual Studio Build Tools on Windows). Node's built-in
   `node:sqlite` gives the same synchronous API with zero native dependencies.

@@ -9,8 +9,8 @@ export const uploadRouter = Router();
 
 const insertActivity = db.prepare(`
   INSERT OR IGNORE INTO activities
-    (date, distance_km, duration_seconds, avg_pace_per_km, avg_heartrate, elevation_gain_m, activity_type, source_file, dedupe_key)
-  VALUES (@date, @distance_km, @duration_seconds, @avg_pace_per_km, @avg_heartrate, @elevation_gain_m, @activity_type, @source_file, @dedupe_key)
+    (user_id, date, distance_km, duration_seconds, avg_pace_per_km, avg_heartrate, elevation_gain_m, activity_type, source_file, dedupe_key)
+  VALUES (@user_id, @date, @distance_km, @duration_seconds, @avg_pace_per_km, @avg_heartrate, @elevation_gain_m, @activity_type, @source_file, @dedupe_key)
 `);
 
 uploadRouter.post("/", upload.array("files"), async (req, res) => {
@@ -38,6 +38,7 @@ uploadRouter.post("/", upload.array("files"), async (req, res) => {
       const key = dedupeKey(activity.date, activity.distance_km, activity.duration_seconds);
       const info = insertActivity.run({
         ...activity,
+        user_id: req.userId!,
         avg_heartrate: activity.avg_heartrate ?? null,
         elevation_gain_m: activity.elevation_gain_m ?? null,
         source_file: file.originalname,

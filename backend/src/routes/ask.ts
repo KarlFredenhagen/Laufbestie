@@ -15,10 +15,14 @@ askRouter.post("/", async (req, res) => {
   }
 
   try {
-    const activities = db.prepare("SELECT * FROM activities ORDER BY date ASC").all() as unknown as StoredActivity[];
+    const activities = db
+      .prepare("SELECT * FROM activities WHERE user_id = ? ORDER BY date ASC")
+      .all(req.userId!) as unknown as StoredActivity[];
     const summary = activities.length > 0 ? buildTrainingSummary(activities) : null;
 
-    const prefsRow = db.prepare("SELECT data FROM preferences WHERE id = 1").get() as { data: string } | undefined;
+    const prefsRow = db.prepare("SELECT data FROM preferences WHERE user_id = ?").get(req.userId!) as
+      | { data: string }
+      | undefined;
     const preferences = prefsRow ? (JSON.parse(prefsRow.data) as Preferences) : null;
 
     const answer = await answerQuestion(question, summary, preferences);

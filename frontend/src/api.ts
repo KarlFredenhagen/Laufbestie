@@ -11,6 +11,26 @@ async function json<T>(res: Response): Promise<T> {
 type PlanResponse = { id: number; plan: GeneratedPlan; created_at: string };
 
 export const api = {
+  login: async (email: string, password: string): Promise<void> => {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    await json(res);
+  },
+
+  logout: async (): Promise<void> => {
+    const res = await fetch("/api/auth/logout", { method: "POST" });
+    await json(res);
+  },
+
+  me: async (): Promise<{ email: string } | null> => {
+    const res = await fetch("/api/auth/me");
+    if (res.status === 401) return null;
+    return json(res);
+  },
+
   uploadFiles: async (files: FileList | File[]): Promise<UploadResult> => {
     const formData = new FormData();
     Array.from(files).forEach((f) => formData.append("files", f));

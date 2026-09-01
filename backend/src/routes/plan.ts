@@ -6,25 +6,29 @@ import { generatePlan, adaptPlan } from "../claude";
 
 export const planRouter = Router();
 
-function loadPreferences(): Preferences | null {
-  const row = db.prepare("SELECT data FROM preferences WHERE id = 1").get() as { data: string } | undefined;
+function loadPreferences(userId: number): Preferences | null {
+  const row = db.prepare("SELECT data FROM preferences WHERE user_id = ?").get(userId) as { data: string } | undefined;
   return row ? (JSON.parse(row.data) as Preferences) : null;
 }
 
-function loadSummary() {
-  const activities = db.prepare("SELECT * FROM activities ORDER BY date ASC").all() as unknown as StoredActivity[];
+function loadSummary(userId: number) {
+  const activities = db
+    .prepare("SELECT * FROM activities WHERE user_id = ? ORDER BY date ASC")
+    .all(userId) as unknown as StoredActivity[];
   return buildTrainingSummary(activities);
 }
 
 // Only events from today onward are relevant context for a training plan.
-function loadUpcomingEvents(): CalendarEvent[] {
+function loadUpcomingEvents(userId: number): CalendarEvent[] {
   const today = new Date().toISOString().slice(0, 10);
-  return db.prepare("SELECT * FROM events WHERE date >= ? ORDER BY date ASC LIMIT 50").all(today) as unknown as CalendarEvent[];
+  return db
+    .prepare("SELECT * FROM events WHERE user_id = ? AND date >= ? ORDER BY date ASC LIMIT 50")
+    .all(userId, today) as unknown as CalendarEvent[];
 }
 
 // Latest cached plan, if one exists.
-planRouter.get("/", (_req, res) => {
-  const row = db.prepare("SELECT * FROM plans ORDER BY created_at DESC LIMIT 1").get() as
+planRouter.get("/", (req, res) => {
+  const row = db.prepare("SELECT * FROM plans WHERE user_id = ? ORDER BY created_at DESC LIMIT 1").get(req.userId!) as
     | { id: number; plan_json: string; created_at: string }
     | undefined;
   if (!row) return res.json(null);
@@ -33,18 +37,19 @@ planRouter.get("/", (_req, res) => {
 
 // Generates a new plan and caches it. Only called when the user explicitly asks —
 // existing plans are served from the cache above, never silently regenerated.
-planRouter.post("/generate", async (_req, res) => {
+planRouter.post("/generate", async (req, res) => {
   try {
-    const preferences = loadPreferences();
+    const userId = req.userId!;
+    const preferences = loadPreferences(userId);
     if (!preferences) return res.status(400).json({ error: "Bitte zuerst die Trainingspräferenzen festlegen, bevor ein Plan erstellt wird." });
 
-    const summary = loadSummary();
-    const events = loadUpcomingEvents();
+    const summary = loadSummary(userId);
+    const events = loadUpcomingEvents(userId);
     const plan = await generatePlan(summary, preferences, events);
 
     const info = db
-      .prepare("INSERT INTO plans (plan_json, summary_json, preferences_json) VALUES (?, ?, ?)")
-      .run(JSON.stringify(plan), JSON.stringify(summary), JSON.stringify(preferences));
+      .prepare("INSERT INTO plans (user_id, plan_json, summary_json, preferences_json) VALUES (?, ?, ?, ?)")
+      .run(userId, JSON.stringify(plan), JSON.stringify(summary), JSON.stringify(preferences));
 
     res.json({ id: info.lastInsertRowid, plan, created_at: new Date().toISOString() });
   } catch (err) {
@@ -56,24 +61,25 @@ planRouter.post("/generate", async (_req, res) => {
 // about what changed — rather than starting over from the preferences wizard.
 planRouter.post("/adapt", async (req, res) => {
   try {
-    const row = db.prepare("SELECT plan_json FROM plans ORDER BY created_at DESC LIMIT 1").get() as
+    const userId = req.userId!;
+    const row = db.prepare("SELECT plan_json FROM plans WHERE user_id = ? ORDER BY created_at DESC LIMIT 1").get(userId) as
       | { plan_json: string }
       | undefined;
     if (!row) return res.status(400).json({ error: "Es gibt noch keinen Plan zum Anpassen." });
 
-    const preferences = loadPreferences();
+    const preferences = loadPreferences(userId);
     if (!preferences) return res.status(400).json({ error: "Es sind keine Trainingspräferenzen gespeichert." });
 
     const currentPlan = JSON.parse(row.plan_json) as GeneratedPlan;
-    const summary = loadSummary();
-    const events = loadUpcomingEvents();
+    const summary = loadSummary(userId);
+    const events = loadUpcomingEvents(userId);
     const changeNote = (req.body?.note as string | undefined)?.trim() ?? "";
 
     const plan = await adaptPlan(currentPlan, summary, preferences, events, changeNote);
 
     const info = db
-      .prepare("INSERT INTO plans (plan_json, summary_json, preferences_json) VALUES (?, ?, ?)")
-      .run(JSON.stringify(plan), JSON.stringify(summary), JSON.stringify(preferences));
+      .prepare("INSERT INTO plans (user_id, plan_json, summary_json, preferences_json) VALUES (?, ?, ?, ?)")
+      .run(userId, JSON.stringify(plan), JSON.stringify(summary), JSON.stringify(preferences));
 
     res.json({ id: info.lastInsertRowid, plan, created_at: new Date().toISOString() });
   } catch (err) {
@@ -81,8 +87,8 @@ planRouter.post("/adapt", async (req, res) => {
   }
 });
 
-// Clears all saved plans, returning the app to its "no plan yet" state.
-planRouter.delete("/", (_req, res) => {
-  db.prepare("DELETE FROM plans").run();
+// Clears this user's saved plans, returning the app to its "no plan yet" state.
+planRouter.delete("/", (req, res) => {
+  db.prepare("DELETE FROM plans WHERE user_id = ?").run(req.userId!);
   res.json({ ok: true });
 });
