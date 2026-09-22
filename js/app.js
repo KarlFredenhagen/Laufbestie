@@ -9,6 +9,7 @@ import { renderPlan } from './plan.js';
 import { renderActivities } from './activities.js';
 import { renderProgress } from './progress.js';
 import { renderSettings } from './settings.js';
+import { initUpdateCheck } from './update.js';
 
 const VIEWS = ['home', 'plan', 'activities', 'progress', 'settings'];
 const RENDERERS = {
@@ -71,19 +72,13 @@ function updateOfflineBar() {
   $('#offlineBar').classList.toggle('on', !navigator.onLine);
 }
 
-function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
-}
-
 function init() {
   paintIcons(document);
   wireNav();
   updateOfflineBar();
   addEventListener('online', updateOfflineBar);
   addEventListener('offline', updateOfflineBar);
-  registerServiceWorker();
+  initUpdateCheck();
 
   window.addEventListener('error', e => {
     console.error('Unbehandelter Fehler', e.error || e.message);

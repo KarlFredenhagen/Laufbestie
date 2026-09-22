@@ -1,7 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#7c3aed"/>
-  <path d="M120 320c40-64 100-96 160-96M150 260c34-50 84-74 130-74M180 200c26-34 62-50 96-50"
-    fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
-  <circle cx="304" cy="168" r="30" fill="#fff"/>
-  <rect x="150" y="368" width="212" height="24" rx="12" fill="#fff"/>
+  <defs>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="0.9" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#110c1b"/>
+  <g transform="translate(62.5 37) scale(15)">
+    <g filter="url(#glow)" opacity="0.85">
+      <path d="M2.6 17.8c0-1.2.9-2.1 2.1-2l1.9.1 2.3-2.6c1.7-1.9 4.1-3 6.6-3 2.5 0 4.7 1.1 6 2.9.9 0 1.7.7 1.7 1.9 0 1.6-1.3 2.7-2.9 2.7H4.5c-1 0-1.9-.9-1.9-2Z" fill="#a879ff"/>
+      <rect x="2.6" y="18.6" width="18.7" height="1.6" rx="0.8" fill="#a879ff"/>
+    </g>
+    <path d="M2.6 17.8c0-1.2.9-2.1 2.1-2l1.9.1 2.3-2.6c1.7-1.9 4.1-3 6.6-3 2.5 0 4.7 1.1 6 2.9.9 0 1.7.7 1.7 1.9 0 1.6-1.3 2.7-2.9 2.7H4.5c-1 0-1.9-.9-1.9-2Z" fill="#fff"/>
+    <rect x="2.6" y="18.6" width="18.7" height="1.6" rx="0.8" fill="#fff"/>
+    <path d="M10.8 12.6l1.6-2M13.4 11.6l1.6-1.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
 </svg>
