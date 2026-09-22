@@ -1,0 +1,38 @@
+{
+  "name": "Laufbestie",
+  "short_name": "Laufbestie",
+  "description": "Dein persönlicher Laufplan — von Gemini erstellt, von dir gelaufen.",
+  "id": "/laufbestie/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#110c1b",
+  "theme_color": "#110c1b",
+  "lang": "de",
+  "dir": "ltr",
+  "categories": ["health", "fitness", "sports"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lauf eintragen",
+      "short_name": "Neu",
+      "description": "Absolvierten Lauf erfassen",
+      "url": "./index.html?view=activities",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Trainingsplan",
+      "short_name": "Plan",
+      "description": "Aktuellen Trainingsplan ansehen",
+      "url": "./index.html?view=plan",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

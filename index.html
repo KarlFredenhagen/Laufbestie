@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#110c1b">
+<title>Laufbestie</title>
+<meta name="description" content="Dein persönlicher Laufplan — von Gemini erstellt, von dir gelaufen.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Laufbestie">
+<meta name="format-detection" content="telephone=no">
+</head>
+<body>
+
+<div id="offlineBar">Offline — Gemini braucht eine Verbindung, deine Daten sind trotzdem da</div>
+
+<!-- ================= ONBOARDING ================= -->
+<div id="onb" class="hidden">
+  <div class="inner">
+    <div class="dots" id="onbDots"></div>
+    <div id="onbBody"></div>
+  </div>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="logo"><span class="ico" data-ico="run" data-ico-size="21"></span> Laufbestie</div>
+    <div class="spacer"></div>
+    <div class="streak hidden" id="streakBadge"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= HOME ================= -->
+  <section id="v-home" class="hidden"></section>
+
+  <!-- ================= PLAN ================= -->
+  <section id="v-plan" class="hidden"></section>
+
+  <!-- ================= LÄUFE ================= -->
+  <section id="v-activities" class="hidden"></section>
+
+  <!-- ================= FORTSCHRITT ================= -->
+  <section id="v-progress" class="hidden"></section>
+
+  <!-- ================= MEHR ================= -->
+  <section id="v-settings" class="hidden"></section>
+
+</main>
+
+<nav>
+  <div class="wrap">
+    <div class="pill" id="navPill"></div>
+    <button data-v="home" class="on"><span class="ico" data-ico="target" data-ico-size="21"></span>Home</button>
+    <button data-v="plan"><span class="ico" data-ico="calendar" data-ico-size="21"></span>Plan</button>
+    <button data-v="activities"><span class="ico" data-ico="run" data-ico-size="21"></span>Läufe</button>
+    <button data-v="progress"><span class="ico" data-ico="chart" data-ico-size="21"></span>Fortschritt</button>
+    <button data-v="settings"><span class="ico" data-ico="gear" data-ico-size="21"></span>Mehr</button>
+  </div>
+</nav>
+
+<div id="toast"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
