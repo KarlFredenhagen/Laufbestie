@@ -1,8 +1,26 @@
 // Home / Dashboard: Countdown, naechster Lauf, Wochenfortschritt, Ziel.
 import { $, r0, r1, esc, todayIso, fmtDate, mondayOf, shiftIso, daysBetween, animIn } from './ui.js';
-import { store, nextWorkout, WORKOUT_TYPES, GOAL_TYPES } from './store.js';
+import { store, nextWorkout, flatWorkouts, WORKOUT_TYPES, GOAL_TYPES } from './store.js';
 import { ico, paintIcons } from './icons.js';
-import { formatPace } from './pace.js';
+import { formatPace, formatDuration, parseDuration } from './pace.js';
+
+const GOAL_KM = { '5k': 5, '10k': 10, half: 21.0975, marathon: 42.195 };
+
+// Riegel-Formel: schaetzt aus dem besten juengeren Lauf die aktuelle Form
+// fuer die Zieldistanz. Keine Gemini-Anfrage noetig, nur grobe Orientierung.
+function estimateGoalTime(activities, goal) {
+  const targetKm = GOAL_KM[goal.type];
+  if (!targetKm) return null;
+  const cutoff = shiftIso(todayIso(), -90);
+  const recent = activities.filter(a => a.distance >= 2.5 && a.durationSec > 0 && a.date >= cutoff);
+  if (!recent.length) return null;
+  let best = null;
+  for (const a of recent) {
+    const predicted = a.durationSec * Math.pow(targetKm / a.distance, 1.06);
+    if (best === null || predicted < best) best = predicted;
+  }
+  return best;
+}
 
 export function renderHome() {
   const el = $('#v-home');
@@ -12,6 +30,7 @@ export function renderHome() {
 
   el.innerHTML = `
     ${countdownCard(goal)}
+    ${todayNote(plan, today)}
     <h2>Nächster Lauf</h2>
     ${nextRunCard(plan, today)}
     <h2>Diese Woche</h2>
@@ -51,6 +70,16 @@ function countdownCard(goal) {
     <div class="lbl">${d === 1 ? 'Tag' : 'Tage'} bis ${esc(label)}</div>
     <div class="ev">${fmtDate(goal.eventDate, { year: true })}</div>
   </div></div>`;
+}
+
+function todayNote(plan, today) {
+  if (!plan) return '';
+  const wo = flatWorkouts().find(w => w.date === today);
+  if (!wo || wo.type !== 'rest') return '';
+  return `<div class="card pad anim-in" style="margin-top:14px;text-align:center">
+    <span class="wtype rest">Ruhetag</span>
+    <div class="hint" style="margin-top:8px">Heute ist laut Plan Erholung dran.</div>
+  </div>`;
 }
 
 function nextRunCard(plan, today) {
@@ -111,6 +140,21 @@ function goalCard(goal) {
   if (!goal.type) return `<div class="card pad anim-in"><div class="empty">Noch kein Ziel eingetragen.</div></div>`;
   const label = goal.type === 'custom' ? (goal.customLabel || 'Eigenes Ziel') : GOAL_TYPES[goal.type];
   const time = goal.finishOnly ? 'Hauptsache ankommen' : (goal.targetTime || 'keine Zielzeit');
+
+  let formLine = '';
+  const estimateSec = estimateGoalTime(store.activities, goal);
+  if (estimateSec) {
+    let tag = '';
+    if (!goal.finishOnly && goal.targetTime) {
+      const targetSec = parseDuration(goal.targetTime);
+      if (targetSec) {
+        const onTrack = estimateSec <= targetSec;
+        tag = `<span class="tag ${onTrack ? 'ok' : 'warn'}" style="margin-left:8px">${onTrack ? 'auf Kurs' : 'hinter Ziel'}</span>`;
+      }
+    }
+    formLine = `<div class="hint" style="margin-top:10px">Aktuelle Form: ~${formatDuration(estimateSec)}${tag}</div>`;
+  }
+
   return `<div class="card pad anim-in">
     <div style="display:flex;align-items:center;gap:12px">
       <span class="ico" style="color:var(--accent)">${ico('trophy', 26)}</span>
@@ -119,6 +163,7 @@ function goalCard(goal) {
         <div class="hint" style="margin-top:2px">${esc(time)}</div>
       </div>
     </div>
+    ${formLine}
   </div>`;
 }
 

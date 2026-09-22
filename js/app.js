@@ -10,6 +10,7 @@ import { renderActivities } from './activities.js';
 import { renderProgress } from './progress.js';
 import { renderSettings } from './settings.js';
 import { initUpdateCheck } from './update.js';
+import { renderStreakBadge } from './streak.js';
 
 const VIEWS = ['home', 'plan', 'activities', 'progress', 'settings'];
 const RENDERERS = {
@@ -27,6 +28,7 @@ function show(v) {
   window.scrollTo({ top: 0 });
   safeRender(v);
   moveNavPill();
+  renderStreakBadge();
 }
 
 function safeRender(v) {
