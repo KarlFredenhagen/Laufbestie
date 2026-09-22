@@ -31,7 +31,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-html{overscroll-behavior-y:none}
+html{overscroll-behavior-y:none;background:var(--bg)}
 body{
   background:
     radial-gradient(720px 420px at 82% -6%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 60%),
