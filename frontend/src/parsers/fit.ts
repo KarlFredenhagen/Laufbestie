@@ -10,7 +10,7 @@ import { isRunningType, toIsoDate, computePaceSecPerKm, ParseError } from "./com
 // objects grouped by message type. We only care about the `session` messages here, since
 // a session already aggregates one activity's totals (distance, elapsed time, avg HR,
 // ascent) the way a single run/ride would be summarized in Garmin Connect.
-function parseWithLibrary(buffer: Buffer): Promise<any> {
+function parseWithLibrary(buffer: ArrayBuffer): Promise<any> {
   return new Promise((resolve, reject) => {
     const parser = new FitParser({
       force: true,
@@ -27,12 +27,12 @@ function parseWithLibrary(buffer: Buffer): Promise<any> {
 }
 
 export async function parseFit(
-  buffer: Buffer,
+  arrayBuffer: ArrayBuffer,
   filename: string
 ): Promise<{ activities: NormalizedActivity[]; skipped: number }> {
   let data: any;
   try {
-    data = await parseWithLibrary(buffer);
+    data = await parseWithLibrary(arrayBuffer);
   } catch (err) {
     throw new ParseError(`${filename}: keine gültige/lesbare FIT-Datei (${(err as Error).message ?? err})`);
   }

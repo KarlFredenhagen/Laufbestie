@@ -8,10 +8,10 @@ const xmlParser = new XMLParser({
   parseTagValue: true,
 });
 
-export function parseTcx(buffer: Buffer, filename: string): { activities: NormalizedActivity[]; skipped: number } {
+export function parseTcx(xml: string, filename: string): { activities: NormalizedActivity[]; skipped: number } {
   let doc: any;
   try {
-    doc = xmlParser.parse(buffer.toString("utf-8"));
+    doc = xmlParser.parse(xml);
   } catch (err) {
     throw new ParseError(`${filename}: keine gültige TCX/XML-Datei (${(err as Error).message})`);
   }

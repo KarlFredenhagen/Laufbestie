@@ -30,8 +30,7 @@ function extractAvgHeartrate(xml: string): number | undefined {
   return average(matches.map((m) => parseInt(m[1], 10)));
 }
 
-export function parseGpx(buffer: Buffer, filename: string): { activities: NormalizedActivity[]; skipped: number } {
-  const xml = buffer.toString("utf-8");
+export function parseGpx(xml: string, filename: string): { activities: NormalizedActivity[]; skipped: number } {
   let doc: any;
   try {
     doc = xmlParser.parse(xml);

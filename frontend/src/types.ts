@@ -1,3 +1,19 @@
+// Normalized shape every parser (GPX/TCX/FIT/CSV) must produce, regardless of source format.
+export interface NormalizedActivity {
+  date: string; // ISO date (YYYY-MM-DD)
+  distance_km: number;
+  duration_seconds: number;
+  avg_pace_per_km: number; // seconds/km, always derived from distance+duration
+  avg_heartrate?: number;
+  elevation_gain_m?: number;
+  activity_type: string; // raw sport/type string from the source file
+}
+
+export interface ParseResult {
+  activities: NormalizedActivity[];
+  skippedNonRunning: number;
+}
+
 export interface StoredActivity {
   id: number;
   date: string;

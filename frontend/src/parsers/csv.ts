@@ -74,10 +74,10 @@ function parseDate(raw: string | undefined): Date | undefined {
   return undefined;
 }
 
-export function parseCsv(buffer: Buffer, filename: string): { activities: NormalizedActivity[]; skipped: number } {
+export function parseCsv(text: string, filename: string): { activities: NormalizedActivity[]; skipped: number } {
   let rows: Record<string, string>[];
   try {
-    rows = parse(buffer, { columns: true, skip_empty_lines: true, trim: true, bom: true });
+    rows = parse(text, { columns: true, skip_empty_lines: true, trim: true, bom: true });
   } catch (err) {
     throw new ParseError(`${filename}: keine gültige CSV-Datei (${(err as Error).message})`);
   }
