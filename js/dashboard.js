@@ -32,7 +32,7 @@ export function renderHome() {
 
 function countdownCard(goal) {
   if (!goal.eventDate) {
-    return `<div class="card hero pad anim-in"><div class="hero-count">
+    return `<div class="card hero pad anim-in" style="margin-top:20px"><div class="hero-count">
       <div class="lbl">Noch kein Event eingetragen</div>
       <div class="ev">Trag dein Ziel unter „Mehr" ein</div>
     </div></div>`;
@@ -41,12 +41,12 @@ function countdownCard(goal) {
   const d = daysBetween(today, goal.eventDate);
   const label = goal.eventName || GOAL_TYPES[goal.type] || 'dein Event';
   if (d < 0) {
-    return `<div class="card hero pad anim-in"><div class="hero-count">
+    return `<div class="card hero pad anim-in" style="margin-top:20px"><div class="hero-count">
       <div class="ev">${esc(label)} liegt hinter dir</div>
       <div class="lbl">${fmtDate(goal.eventDate, { year: true })}</div>
     </div></div>`;
   }
-  return `<div class="card hero pad anim-in"><div class="hero-count">
+  return `<div class="card hero pad anim-in" style="margin-top:20px"><div class="hero-count">
     <div class="n">${d}</div>
     <div class="lbl">${d === 1 ? 'Tag' : 'Tage'} bis ${esc(label)}</div>
     <div class="ev">${fmtDate(goal.eventDate, { year: true })}</div>
