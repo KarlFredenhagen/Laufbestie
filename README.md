@@ -48,6 +48,9 @@ aber nie deinen Schlüssel.
   Event — Easy Runs, Long Runs, Tempo, Intervalle, Marathon Pace, Race
   Simulation, Rest, mit progressiver Belastung, Entlastungswochen und
   Tapering
+- **In den Kalender exportieren**: lädt eine `.ics`-Datei mit allen
+  geplanten Läufen — öffnen oder in Apple/Google/Outlook-Kalender
+  importieren, kein eigener Kalender-Account nötig
 - **Läufe erfassen**: Datum, Distanz, Zeit, Ø Herzfrequenz (Pflicht),
   optional Max-HF, Höhenmeter, RPE, Notiz — Pace wird automatisch berechnet
 - **Wochenanalyse**: einmal pro Woche vergleicht Gemini geplante mit

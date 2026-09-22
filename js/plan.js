@@ -3,6 +3,7 @@ import { $, esc, r1, todayIso, fmtDate, mondayOf, shiftIso, animIn, toast, tap }
 import { store, WORKOUT_TYPES, WEEKDAY_NAMES, uid } from './store.js';
 import { ico, paintIcons } from './icons.js';
 import { generatePlan, analyzeWeek } from './gemini.js';
+import { downloadIcs } from './ics.js';
 
 let busy = false;
 
@@ -37,8 +38,10 @@ function planHeader(plan) {
   return `<div class="card pad anim-in" style="margin-top:20px">
     <div style="font-size:14px;line-height:1.5">${esc(plan.summary || '')}</div>
     <div class="row" style="margin-top:14px">
+      <button class="btn-ghost btn-sm" id="planExportIcs">${ico('calendar', 15)} In Kalender exportieren</button>
       <button class="btn-ghost btn-sm" id="planRegenerate">${ico('refresh', 15)} Neu erstellen</button>
     </div>
+    <div class="hint" style="margin-top:10px">Lädt eine .ics-Datei mit allen Läufen — öffnen oder in Apple/Google/Outlook-Kalender importieren.</div>
   </div>`;
 }
 
@@ -107,6 +110,16 @@ function wire(el) {
   };
   const analyze = $('#analyzeWeek');
   if (analyze) analyze.onclick = doAnalyze;
+  const exportIcs = $('#planExportIcs');
+  if (exportIcs) exportIcs.onclick = () => {
+    const plan = store.plan;
+    if (!plan) return;
+    const hasWorkouts = (plan.weeks || []).some(w => (w.workouts || []).some(wo => wo.type !== 'rest'));
+    if (!hasWorkouts) { toast('Keine Läufe im Plan zum Exportieren'); return; }
+    tap();
+    downloadIcs(plan, `laufbestie-plan-${todayIso()}.ics`);
+    toast('Kalenderdatei wird heruntergeladen');
+  };
 }
 
 async function doGenerate(isRegen) {
