@@ -1,5 +1,5 @@
 // Offline-Huelle fuer Laufbestie. Die Gemini-API wird nie gecacht.
-const CACHE = 'laufbestie-v3';
+const CACHE = 'laufbestie-v4';
 const SHELL = [
   './', './index.html', './style.css', './manifest.json',
   './js/app.js', './js/ui.js', './js/store.js', './js/icons.js', './js/pace.js',

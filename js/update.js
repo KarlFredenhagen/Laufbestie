@@ -1,8 +1,6 @@
-// Erkennt, wenn eine neue Version deployt wurde (neuer Service Worker),
-// und bietet ein Neuladen an, statt dass alte Tabs/installierte PWAs
-// stumm auf dem alten Stand haengen bleiben.
-import { $ } from './ui.js';
-
+// Erkennt im Hintergrund, wenn eine neue Version deployt wurde (neuer
+// Service Worker) — ohne Banner oder ungefragtes Neuladen. Sichtbar wird
+// das nur ueber den manuellen "Nach Updates suchen"-Button unter "Mehr".
 let registration = null;
 let updateAvailable = false;
 
@@ -11,42 +9,22 @@ export function initUpdateCheck() {
 
   navigator.serviceWorker.register('sw.js').then(reg => {
     registration = reg;
-    if (reg.waiting && navigator.serviceWorker.controller) showBanner();
+    if (reg.waiting && navigator.serviceWorker.controller) updateAvailable = true;
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       if (!nw) return;
       nw.addEventListener('statechange', () => {
-        if (nw.state === 'installed' && navigator.serviceWorker.controller) showBanner();
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) updateAvailable = true;
       });
     });
   }).catch(() => {});
 
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return;
-    reloaded = true;
-    location.reload();
-  });
-
   // Browser pruefen sw.js sonst nur bei Navigation — beim Zurueckkommen
-  // in die App aktiv nachfragen, damit offene Tabs/installierte PWA
-  // Updates auch ohne Neuladen bemerken.
+  // in die App im Hintergrund nachfragen, damit der manuelle Check unter
+  // "Mehr" auch ohne vorheriges Neuladen ein frisches Ergebnis zeigt.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && registration) registration.update().catch(() => {});
   });
-
-  const btn = $('#updateReload');
-  if (btn) btn.onclick = () => {
-    btn.disabled = true;
-    btn.textContent = 'Lädt …';
-    location.reload();
-  };
-}
-
-function showBanner() {
-  updateAvailable = true;
-  const bar = $('#updateBar');
-  if (bar) bar.classList.add('on');
 }
 
 // Fuer den manuellen "Nach Updates suchen"-Button unter "Mehr".
