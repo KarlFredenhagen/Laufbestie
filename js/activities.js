@@ -3,9 +3,37 @@ import { $, esc, r1, todayIso, fmtDate, animIn, toast, tap } from './ui.js';
 import { store, addActivity, updateActivity, deleteActivity, uid } from './store.js';
 import { ico, paintIcons } from './icons.js';
 import { parseDuration, formatDuration, calcPaceSecPerKm, formatPace } from './pace.js';
+import { renderStreakBadge } from './streak.js';
 
 let formOpen = false;
 let editingId = null;
+
+const PB_DISTANCES = [
+  { key: 'pb5k', km: 5, tolerance: 0.15, label: '5 km' },
+  { key: 'pb10k', km: 10, tolerance: 0.3, label: '10 km' },
+  { key: 'pbHalf', km: 21.0975, tolerance: 0.5, label: 'Halbmarathon' },
+  { key: 'pbMarathon', km: 42.195, tolerance: 0.5, label: 'Marathon' }
+];
+
+// Erkennt, ob ein neu eingetragener Lauf ungefaehr einer Standarddistanz
+// entspricht und schneller ist als die hinterlegte Bestzeit — bietet dann
+// an, die Bestzeit unter "Mehr" direkt zu uebernehmen.
+function checkForNewPB(activity) {
+  const match = PB_DISTANCES.find(d => Math.abs(activity.distance - d.km) <= d.tolerance);
+  if (!match) return;
+  const running = store.running;
+  const currentPbStr = running[match.key];
+  const currentPbSec = currentPbStr ? parseDuration(currentPbStr) : 0;
+  if (currentPbSec && activity.durationSec >= currentPbSec) return;
+  const newTimeStr = formatDuration(activity.durationSec);
+  const msg = currentPbStr
+    ? `Neue Bestzeit! ${match.label} in ${newTimeStr} (bisher ${currentPbStr}). Als Bestzeit übernehmen?`
+    : `${match.label} in ${newTimeStr} erkannt. Als Bestzeit speichern?`;
+  if (window.confirm(msg)) {
+    store.running = { ...running, [match.key]: newTimeStr };
+    toast('Bestzeit aktualisiert');
+  }
+}
 
 export function renderActivities() {
   const el = $('#v-activities');
@@ -148,6 +176,7 @@ function onSave() {
     } else {
       addActivity({ id: uid(), ...patch });
       toast('Lauf hinzugefügt');
+      checkForNewPB(patch);
     }
   } catch (e) {
     toast('Konnte nicht gespeichert werden: ' + (e.message || 'Speicherfehler'));
@@ -156,6 +185,7 @@ function onSave() {
   formOpen = false;
   editingId = null;
   renderActivities();
+  renderStreakBadge();
 }
 
 function onDelete() {
@@ -166,4 +196,5 @@ function onDelete() {
   formOpen = false;
   editingId = null;
   renderActivities();
+  renderStreakBadge();
 }
