@@ -1,12 +1,14 @@
 // "Mehr": Profil, Trainingsbedingungen, Ziel, Gemini API, Daten.
-import { $, esc, toast, tap, animIn, todayIso } from './ui.js';
+import { $, esc, toast, tap, animIn, todayIso, enhanceSelect, syncSelect } from './ui.js';
 import {
   store, WEEKDAY_SHORT,
   exportAll, validateImport, importAll, wipeAll
 } from './store.js';
 import { textField, textareaField, segField, dayPicker, switchField, wireSeg, wireDayPick, readSeg, readDayPick } from './fields.js';
 import { ico, paintIcons } from './icons.js';
-import { testApiKey } from './gemini.js';
+import { testApiKey, fetchModels } from './gemini.js';
+
+const DEFAULT_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
 export function renderSettings(onWipe) {
   const el = $('#v-settings');
@@ -103,6 +105,16 @@ export function renderSettings(onWipe) {
         <button class="btn-ghost" id="testKey">API Key testen</button>
         <button class="btn-ghost" id="deleteKey" style="color:var(--err)">API Key löschen</button>
       </div>
+      <div class="sep"></div>
+      <div class="field">
+        <label for="sModel">Modell</label>
+        <select id="sModel">
+          ${modelOptions(store.model).map(m => `<option value="${esc(m)}" ${m === store.model ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+        </select>
+        <div class="hint">Welches Gemini-Modell für Plan und Wochenanalyse verwendet wird. Bei einem veralteten Standardmodell wechselt die App sonst automatisch — hier gewählt bleibt fest.</div>
+      </div>
+      <button class="btn-ghost" id="refreshModels" style="width:100%">${ico('refresh', 15)} Verfügbare Modelle aktualisieren</button>
+      <div id="modelStatus"></div>
     </div>
 
     <h2>Daten</h2>
@@ -216,6 +228,28 @@ function wire(el, onWipe) {
     toast('API Key gelöscht');
   };
 
+  const modelSel = $('#sModel');
+  enhanceSelect(modelSel);
+  modelSel.onchange = () => {
+    store.model = modelSel.value;
+    store.pinned = true;
+    toast('Modell gespeichert');
+  };
+  $('#refreshModels').onclick = async () => {
+    const box = $('#modelStatus');
+    if (!store.key.trim()) { toast('Trag zuerst einen API Key ein'); return; }
+    box.innerHTML = `<div class="status load"><div class="spin"></div>Lade verfügbare Modelle …</div>`;
+    const list = await fetchModels(true);
+    if (!list || !list.length) {
+      box.innerHTML = `<div class="status err">${ico('warn', 16)} Modelle konnten nicht geladen werden — Key und Verbindung prüfen.</div>`;
+      return;
+    }
+    const current = modelSel.value;
+    modelSel.innerHTML = list.map(m => `<option value="${esc(m)}" ${m === current ? 'selected' : ''}>${esc(m)}</option>`).join('');
+    syncSelect(modelSel);
+    box.innerHTML = `<div class="status ok">${ico('check', 16)} ${list.length} Modelle geladen.</div>`;
+  };
+
   $('#exportData').onclick = () => {
     const data = exportAll();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -253,6 +287,12 @@ function wire(el, onWipe) {
     toast('Alle Daten gelöscht');
     onWipe && onWipe();
   };
+}
+
+function modelOptions(current) {
+  const set = new Set(DEFAULT_MODELS);
+  if (current) set.add(current);
+  return [...set];
 }
 
 function numOrNull(v) {

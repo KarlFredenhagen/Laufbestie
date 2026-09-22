@@ -70,7 +70,7 @@ export function closeSelects(keep) {
     w.querySelector('.cs-panel').classList.add('hidden');
   });
 }
-function syncSelect(sel) {
+export function syncSelect(sel) {
   const { btn, panel } = sel._cs;
   btn.textContent = sel.options[sel.selectedIndex]?.textContent || '–';
   panel.innerHTML = '';
