@@ -7,6 +7,7 @@ import {
 import { textField, textareaField, segField, dayPicker, switchField, wireSeg, wireDayPick, readSeg, readDayPick } from './fields.js';
 import { ico, paintIcons } from './icons.js';
 import { testApiKey, fetchModels } from './gemini.js';
+import { checkForUpdateNow } from './update.js';
 
 const DEFAULT_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
@@ -123,6 +124,13 @@ export function renderSettings(onWipe) {
       <input type="file" id="importFile" accept="application/json" class="hidden">
       <button class="btn-ghost" id="importData" style="width:100%;margin-top:10px">${ico('upload', 16)} Daten importieren</button>
       <button class="btn-ghost" id="wipeData" style="width:100%;margin-top:10px;color:var(--err)">${ico('trash', 16)} Alle Daten löschen</button>
+    </div>
+
+    <h2>App</h2>
+    <div class="card pad">
+      <button class="btn-ghost" id="checkUpdate" style="width:100%">${ico('refresh', 16)} Nach Updates suchen</button>
+      <div class="hint" style="margin:8px 0 0">Neue Versionen werden sonst automatisch erkannt, sobald du die App wieder öffnest — hier kannst du es auch sofort auslösen.</div>
+      <div id="updateCheckStatus"></div>
     </div>
 
     <h2>Datenschutz</h2>
@@ -248,6 +256,17 @@ function wire(el, onWipe) {
     modelSel.innerHTML = list.map(m => `<option value="${esc(m)}" ${m === current ? 'selected' : ''}>${esc(m)}</option>`).join('');
     syncSelect(modelSel);
     box.innerHTML = `<div class="status ok">${ico('check', 16)} ${list.length} Modelle geladen.</div>`;
+  };
+
+  $('#checkUpdate').onclick = async () => {
+    const btn = $('#checkUpdate');
+    const box = $('#updateCheckStatus');
+    btn.disabled = true;
+    box.innerHTML = `<div class="status load"><div class="spin"></div>Suche nach Updates …</div>`;
+    const res = await checkForUpdateNow();
+    box.innerHTML = `<div class="status ${res.ok ? 'ok' : 'err'}">${res.ok ? ico('check', 16) : ico('warn', 16)} ${esc(res.message)}</div>`;
+    btn.disabled = false;
+    if (res.reload) setTimeout(() => location.reload(), 800);
   };
 
   $('#exportData').onclick = () => {

@@ -1,7 +1,7 @@
 // Einfarbige Strich-Icons statt Emojis, im Stil der Essensbestie: sie
 // nehmen die Textfarbe an und passen zu jeder Palette.
 export const ICONS = {
-  run:      '<path d="M13.2 4.2a1.7 1.7 0 1 1 3.4 0 1.7 1.7 0 0 1-3.4 0Z"/><path d="M10.4 21.4 12.6 15l-2.4-1.8-1 3.4-4 2.4"/><path d="m9.6 12.2 2.6-3.4 2.2 1.4 3.6.6"/><path d="M14.4 10.6 15.8 14l3.8 1.4"/>',
+  run:      '<path d="M2.6 17.8c0-1.2.9-2.1 2.1-2l1.9.1 2.3-2.6c1.7-1.9 4.1-3 6.6-3 2.5 0 4.7 1.1 6 2.9.9 0 1.7.7 1.7 1.9 0 1.6-1.3 2.7-2.9 2.7H4.5c-1 0-1.9-.9-1.9-2Z"/><path d="M2.6 19.4h18.7"/><path d="M10.8 12.6l1.6-2M13.4 11.6l1.6-1.8"/>',
   target:   '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.4"/>',
   calendar: '<rect x="3.4" y="5" width="17.2" height="15.6" rx="2.4"/><path d="M3.4 9.8h17.2M8 3v3.6M16 3v3.6"/>',
   list:     '<path d="M8.4 6h12.2M8.4 12h12.2M8.4 18h12.2"/><path d="M3.6 6h.02M3.6 12h.02M3.6 18h.02"/>',
